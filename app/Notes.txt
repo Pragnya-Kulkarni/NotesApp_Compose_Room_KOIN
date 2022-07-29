@@ -1,0 +1,140 @@
+
+For KOIN
+
+1.  // add this for Koin dependency
+       implementation "io.insert-koin:koin-android:3.2.0-beta-1"
+       implementation "io.insert-koin:koin-androidx-navigation:3.2.0-beta-1"
+       implementation "io.insert-koin:koin-androidx-compose:3.2.0-beta-1"
+       testImplementation "io.insert-koin:koin-test-junit4:3.2.0-beta-1"
+
+ 2. ADD AppModule.kt class
+
+3. define
+val appModule = module {
+include all the dependency object creation here
+
+
+below is to get instance of view model
+viewModel { NoteViewModel(get()) }
+
+
+below line means singleton instance repoimpl of type interface
+single<NoteRepositoryInterface> {
+        NoteRepositoryImpl(get())
+    }
+
+ below line means singleton instance datasource Impl of type interface
+    single<LocalDataSourceInterface> {
+        LocalDataSourceImpl(get())
+    }
+
+ below line is for database instance which will be used by NoteDAO
+    fun provideDataBase(application: Application): NoteDataBase {
+        return Room.databaseBuilder(application, NoteDataBase::class.java, "notes_db")
+            .fallbackToDestructiveMigration()
+            .build()
+    }
+
+    single { provideDataBase(androidApplication()) }
+    // below means singleton DAO instance
+    single<NoteDao> {
+        val database = get<NoteDataBase>()
+        database.noteDao
+    }
+}
+
+
+4. Create MyApp.kt class
+
+and include these lines by overriding OnCreate function
+with context and startKoin -> this is needed to start and initialise module
+we have only one module called appModule so included that
+
+override fun onCreate() {
+        super.onCreate()
+        startKoin {
+            androidContext(this@MyApp)
+            modules(appModule)
+        }
+    }
+
+5. In Android Manifest file
+add MyApp class in android:name
+add below line in application
+
+ <application
+        android:name=".di.MyApp"
+
+
+
+
+
+FOR ROOM DATABASE
+
+
+1. add this in module level build.gradle
+
+ // Room components
+    implementation "androidx.room:room-runtime:2.4.2"
+    kapt "androidx.room:room-compiler:2.4.2"
+    implementation "androidx.room:room-ktx:2.4.2"
+
+2.  in plugins {
+
+           //add this for Room
+           id 'kotlin-kapt'
+       }
+
+3. Define NoteDataBase class- define noteDao abstract variable
+@Database
+    (entities = [Note::class], version = 1, exportSchema = false)
+
+abstract class NoteDataBase : RoomDatabase() {
+    abstract val noteDao: NoteDao
+
+    companion object {
+        const val DATABASE_NAME = "notes_db"
+    }
+}
+
+
+4. Define Dao Class
+@Dao
+interface NoteDao {
+
+    @Query("SELECT * FROM note")
+    fun getNotes(): Flow<List<Note>>
+
+    @Query("SELECT * FROM note where id= :id")
+    suspend fun getNoteById(id:Int): Note?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertNote(note:Note)
+
+    @Delete
+    suspend fun deleteNote(note:Note)
+
+    @Update
+    suspend fun updateNote(note:Note)
+
+}
+
+5. Define Entity
+
+@Entity
+data class Note( var title: String, var description: String){
+    @PrimaryKey(autoGenerate = true) var id: Int? = null
+}
+
+6. Define Koin dependency
+
+ fun provideDataBase(application: Application): NoteDataBase {
+        return Room.databaseBuilder(application, NoteDataBase::class.java, "notes_db")
+            .fallbackToDestructiveMigration()
+            .build()
+    }
+    single { provideDataBase(androidApplication()) }
+    single<NoteDao> {
+        val database = get<NoteDataBase>()
+        database.noteDao
+    }
