@@ -19,7 +19,6 @@ class NoteViewModel(private val noteRepositoryImpl: NoteRepositoryInterface) : V
         getNotes()
     }
 
-
     private lateinit var _selectedNote: Note
     val selectedNote: Note
         get() {
